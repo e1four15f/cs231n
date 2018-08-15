@@ -82,7 +82,6 @@ def softmax_loss_vectorized(W, X, y, reg):
   loss = np.sum(np.log(exp_sums) - correct_class_scores)
   loss /= num_train + reg * np.sum(W * W)
 
-  #exp_sums[exp_sums == 0] = 0.0001
   mask = np.exp(scores) / exp_sums[:, None]
   mask[np.arange(num_train), y] -= 1   
 
