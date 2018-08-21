@@ -25,7 +25,9 @@ def affine_forward(x, w, b):
     # TODO: Implement the affine forward pass. Store the result in out. You   #
     # will need to reshape the input into rows.                               #
     ###########################################################################
-    pass
+    N, D = x.shape[0], x[0].shape
+    x_flat = x.reshape((N, np.prod(D)))
+    out = np.dot(x_flat, w) + b 
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -54,7 +56,12 @@ def affine_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
-    pass
+    N, D = x.shape[0], x[0].shape
+    x_flat = x.reshape((N, np.prod(D)))
+    
+    dx = np.dot(dout, w.T).reshape(x.shape)
+    dw = np.dot(x_flat.T, dout)
+    db = np.sum(dout, axis=0, keepdims=True)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -76,7 +83,7 @@ def relu_forward(x):
     ###########################################################################
     # TODO: Implement the ReLU forward pass.                                  #
     ###########################################################################
-    pass
+    out = np.maximum(0, x)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -99,7 +106,8 @@ def relu_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the ReLU backward pass.                                 #
     ###########################################################################
-    pass
+    dx = dout
+    dx[x <= 0] = 0
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -175,7 +183,14 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        pass
+        sample_mean = x.mean()
+        sample_var = x.var()
+        
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
+        
+        z = (x - sample_mean) / np.sqrt(sample_var + eps)
+        out = z * gamma + beta
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -186,7 +201,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        pass
+        z = (x - running_mean) / np.sqrt(running_var + eps)
+        out = z * gamma + beta
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
