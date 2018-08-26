@@ -380,7 +380,7 @@ def layernorm_backward(dout, cache):
     dbeta = np.sum(dout, axis=0)
     dgamma = np.sum(dout * z, axis=0)
     
-    m = dout.shape[0]
+    m = dout.shape[1]
     
     dz = dout * gamma
     dz = dz.T
@@ -388,13 +388,8 @@ def layernorm_backward(dout, cache):
     dvar = np.sum(dz * (x - mean) * (-0.5) * (var + eps)**(-1.5), axis=0)
     dmean = np.sum(dz * (-1 / np.sqrt(var + eps)), axis=0) \
                         + dvar * np.sum(-2 * (x - mean), axis=0) / m
-    
     dx = dz / np.sqrt(var + eps) + dvar * 2 * (x - mean) / m + dmean / m
-    
     dx = dx.T
-    #dx = (1 / m) * gamma * (var + eps)**(-0.5) * (m * dout.T - np.sum(dout.T, axis=0)
-    #     - (x - mean).T * (var + eps) ** (-1) * np.sum(dout.T * (x - mean), axis=0))
-    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -657,7 +652,6 @@ def max_pool_backward_naive(dout, cache):
             x_slice = x[:, :, i:i + PH, j:j + PW]
             max_value = np.max(x_slice, axis=(2, 3), keepdims=True)
             dx[:, :, i:i + PH, j:j + PW][x_slice == max_value] = dout[:, :, i_o, j_o].flatten()
-
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -695,7 +689,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    x_flat = x.transpose(0, 3, 2, 1).reshape((N * H * W, C))
+    out, cache = batchnorm_forward(x_flat, gamma, beta, bn_param)
+    out = out.reshape(N, W, H, C).transpose(0, 3, 2, 1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -725,7 +722,18 @@ def spatial_batchnorm_backward(dout, cache):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    '''
+    dout_flat = dout.reshape(dout.shape[0], -1)
+    dx, dgamma, dbeta = batchnorm_backward(dout_flat, cache) 
+    dx = dx.reshape(dout.shape)
+    dgamma = dgamma.reshape((dout.shape[1], -1)).T.sum(axis=0)
+    dbeta = dbeta.reshape((dout.shape[1], -1)).T.sum(axis=0)
+    '''
+    N, C, H, W = dout.shape
+    dout_flat = dout.transpose(0, 3, 2, 1).reshape((N * H * W, C))
+    dx, dgamma, dbeta = batchnorm_backward_alt(dout_flat, cache)
+    dx = dx.reshape(N, W, H, C).transpose(0, 3, 2, 1)
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
