@@ -26,7 +26,7 @@ def affine_forward(x, w, b):
     # will need to reshape the input into rows.                               #
     ###########################################################################
     N, D = x.shape[0], x[0].shape
-    x_flat = x.reshape((N, np.prod(D)))
+    x_flat = x.reshape(N, np.prod(D))
     out = np.dot(x_flat, w) + b 
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -57,7 +57,7 @@ def affine_backward(dout, cache):
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
     N, D = x.shape[0], x[0].shape
-    x_flat = x.reshape((N, np.prod(D)))
+    x_flat = x.reshape(N, np.prod(D))
     
     dx = np.dot(dout, w.T).reshape(x.shape)
     dw = np.dot(x_flat.T, dout)
@@ -250,6 +250,7 @@ def batchnorm_backward(dout, cache):
     m = dout.shape[0]
     
     dz = dout * gamma
+    
     dvar = np.sum(dz * (x - mean) * (-0.5) * (var + eps)**(-1.5), axis=0)
     dmean = np.sum(dz * (-1 / np.sqrt(var + eps)), axis=0) \
                         + dvar * np.sum(-2 * (x - mean), axis=0) / m
@@ -388,6 +389,7 @@ def layernorm_backward(dout, cache):
     dvar = np.sum(dz * (x - mean) * (-0.5) * (var + eps)**(-1.5), axis=0)
     dmean = np.sum(dz * (-1 / np.sqrt(var + eps)), axis=0) \
                         + dvar * np.sum(-2 * (x - mean), axis=0) / m
+    
     dx = dz / np.sqrt(var + eps) + dvar * 2 * (x - mean) / m + dmean / m
     dx = dx.T
     ###########################################################################
@@ -568,7 +570,7 @@ def conv_backward_naive(dout, cache):
         for j_o in range(W_o):
             j = j_o * stride 
             dx[:, :, i:i + HH, j:j + WW] += dout[:, :, i_o, j_o].dot(
-                w.reshape(F, -1)).reshape((N, C, HH, WW))
+                w.reshape(F, -1)).reshape(N, C, HH, WW)
             dw += dout[:, :, i_o, j_o].T.dot(x_pad[:, :, i:i + HH, j:j + WW].reshape(N, -1)).reshape(w.shape)
     dx = dx[:, :, 1:-1, 1:-1]   
     
@@ -690,7 +692,7 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
     N, C, H, W = x.shape
-    x_flat = x.transpose(0, 3, 2, 1).reshape((N * H * W, C))
+    x_flat = x.transpose(0, 3, 2, 1).reshape(N * H * W, C)
     out, cache = batchnorm_forward(x_flat, gamma, beta, bn_param)
     out = out.reshape(N, W, H, C).transpose(0, 3, 2, 1)
     ###########################################################################
@@ -722,18 +724,10 @@ def spatial_batchnorm_backward(dout, cache):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    '''
-    dout_flat = dout.reshape(dout.shape[0], -1)
-    dx, dgamma, dbeta = batchnorm_backward(dout_flat, cache) 
-    dx = dx.reshape(dout.shape)
-    dgamma = dgamma.reshape((dout.shape[1], -1)).T.sum(axis=0)
-    dbeta = dbeta.reshape((dout.shape[1], -1)).T.sum(axis=0)
-    '''
     N, C, H, W = dout.shape
-    dout_flat = dout.transpose(0, 3, 2, 1).reshape((N * H * W, C))
+    dout_flat = dout.transpose(0, 3, 2, 1).reshape(N * H * W, C)
     dx, dgamma, dbeta = batchnorm_backward_alt(dout_flat, cache)
     dx = dx.reshape(N, W, H, C).transpose(0, 3, 2, 1)
-
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -752,7 +746,7 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     - x: Input data of shape (N, C, H, W)
     - gamma: Scale parameter, of shape (C,)
     - beta: Shift parameter, of shape (C,)
-    - G: Integer mumber of groups to split into, should be a divisor of C
+    - G: Integer number of groups to split into, should be a divisor of C
     - gn_param: Dictionary with the following keys:
       - eps: Constant for numeric stability
 
@@ -769,7 +763,17 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     # the bulk of the code is similar to both train-time batch normalization  #
     # and layer normalization!                                                # 
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    x_group = x.reshape(N, G, C // G, H, W)
+    
+    mean = x_group.mean(axis=(2, 3, 4), keepdims=True)
+    var = x_group.var(axis=(2, 3, 4), keepdims=True)
+    
+    z = (x_group - mean) / np.sqrt(var + eps)
+    z = z.reshape(N, C, H, W)
+    
+    out = z * gamma + beta
+    cache = z, x_group, mean, var, gamma, eps, G
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -795,7 +799,25 @@ def spatial_groupnorm_backward(dout, cache):
     # TODO: Implement the backward pass for spatial group normalization.      #
     # This will be extremely similar to the layer norm implementation.        #
     ###########################################################################
-    pass
+    z, x_group, mean, var, gamma, eps, G = cache
+    N, C, H, W = dout.shape
+    
+    dbeta = np.sum(dout, axis=(0, 2, 3), keepdims=True)
+    dgamma = np.sum(dout * z, axis=(0, 2, 3), keepdims=True)
+ 
+    m = C // G * H * W
+    
+    dz = dout * gamma
+    dz_group = dz.reshape(N, G, C // G, H, W)
+    
+    dvar = np.sum(dz_group * (x_group - mean) * (-0.5) * (var + eps)**(-1.5), axis=(2, 3, 4), keepdims=True)
+    
+    dmean = np.sum(dz_group * (-1 / np.sqrt(var + eps)), axis=(2, 3, 4), keepdims=True) \
+                        + dvar * np.sum(-2 * (x_group - mean), axis=(2, 3, 4), keepdims=True) / m
+    
+    
+    dx = dz_group / np.sqrt(var + eps) + dvar * 2 * (x_group - mean) / m + dmean / m
+    dx = dx.reshape(N, C, H, W)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
