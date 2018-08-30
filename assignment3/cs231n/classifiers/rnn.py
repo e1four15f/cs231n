@@ -140,7 +140,18 @@ class CaptioningRNN(object):
         # Note also that you are allowed to make use of functions from layers.py   #
         # in your implementation, if needed.                                       #
         ############################################################################
-        pass
+        out, cache = affine_forward(features, W_proj, b_proj)
+        out_embed, captions_cache = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type=='rnn':
+            h, cache_rnn = rnn_forward(out_embed, out, Wx, Wh, b)
+        out_aff, cache_aff = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, dfeat = temporal_softmax_loss(out_aff, captions_out, mask)
+        
+        daff, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dfeat, cache_aff)
+        if self.cell_type=='rnn':
+            drnn, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(daff, cache_rnn)
+        grads['W_embed'] = word_embedding_backward(drnn, captions_cache)
+        _, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, cache)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -205,7 +216,20 @@ class CaptioningRNN(object):
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
-        pass
+        out, _ = affine_forward(features, W_proj, b_proj)
+        for n in range(N):
+            captions[n, 0] = self._start
+            h = out[n]
+            for w in range(max_length - 1):
+                word = captions[n, w].reshape((1, 1))
+                out_embed, _ = word_embedding_forward(word, W_embed)
+                if self.cell_type=='rnn':
+                    h, _ = rnn_step_forward(out_embed, h, Wx, Wh, b)
+                out_aff, _ = temporal_affine_forward(h, W_vocab, b_vocab)
+                next_word = out_aff.argmax()
+                captions[n, w + 1] = next_word
+                if next_word == self._end:
+                    break
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
