@@ -80,7 +80,7 @@ class SqueezeNet(object):
         - sess: TensorFlow session
         - input: optional input to the model. If None, will use placeholder for input.
         """
-        self.image = tf.placeholder('float',shape=[None,None,None,3],name='input_image')
+        self.image = tf.placeholder('float', shape=[None,None,None,3], name='input_image')
         self.labels = tf.placeholder('int32', shape=[None], name='labels')
         self.layers = []
         x = self.image
